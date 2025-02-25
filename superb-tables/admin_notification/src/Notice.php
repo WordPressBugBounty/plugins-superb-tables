@@ -210,7 +210,7 @@ class Notice
             '<div id="%1$s" class="%2$s">%3$s</div>',
             'wptrt-notice-' . esc_attr($this->id), // The ID.
             esc_attr($this->get_classes()), // The classes.
-            $html // The HTML.
+            wp_kses($html, "post") // The HTML.
         );
     }
 

@@ -34,6 +34,11 @@ class spbtbl_Plugin
         } else {
             $this->base_url = $_base_url;
         }
+
+        if (is_admin() && !class_exists('SuperbThemes\AddonsRecommender\NoticeController')) {
+            require_once $this->base_dir . '/recommender/recommender.php';
+            \SuperbThemes\AddonsRecommender\NoticeController::init();
+        }
     }
     public function spbtbl_spbThemesNotification()
     {
@@ -94,22 +99,29 @@ class spbtbl_Plugin
             <h1 class="spbtbl_backend_headline">Superb Tables</h1>
 
             <?php
-            if (isset($_GET['func']) && $_GET['func'] == 'add_table') {
+            $func = isset($_GET['func']) ? sanitize_text_field(wp_unslash($_GET['func'])) : false;
+            $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field(wp_unslash($_GET['_wpnonce'])) : false;
+            $editnum = isset($_GET['editnum']) ? intval(sanitize_text_field(wp_unslash($_GET['editnum']))) : false;
+            $savedTable = isset($_GET['savedTable']) ? sanitize_text_field(wp_unslash($_GET['savedTable'])) : false;
+
+            if ($func && $func == 'add_table') {
                 // 'ADD TABLE' UI
                 $this->spbtbl_setup_UI(null);
-            } elseif (isset($_GET['func']) && isset($_GET['editnum']) && $_GET['func'] == 'edit_table' && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'edit_table')) {
+            } elseif ($func && $func == 'edit_table' && $editnum !== false && wp_verify_nonce($nonce, 'edit_table')) {
                 // 'EDIT TABLE' UI
-                $table = $this->db->get(intval($_GET['editnum']));
+                $table = $this->db->get($editnum);
                 if ($table) {
-                    $this->spbtbl_setup_UI($table);
+                    $this->spbtbl_setup_UI($table, $editnum, $savedTable);
                 }
             } else {
+                $deletedTable = isset($_GET['deletedTable']) ? sanitize_text_field(wp_unslash($_GET['deletedTable'])) : false;
+
                 echo "<div class='spbtbl_tip'><span>Tip:</span> Copy & Paste shortcodes in your post/page to show the table.</div>";
                 echo '<span class="spbtbl_speaking_bubble">Unlock all features instantly</span><a href="https://superbthemes.com/plugins/superb-tables/" class="view-premium-version view-premium-version-all-right" target="_blank">View Premium Version</a>';
                 // 'LIST TABLES' UI
-                printf('<a class="spbtbl_btn spbtbl_btn_new_table" href="%s">%s</a>', admin_url('admin.php?page=' . $this->page_slug . "&func=add_table"), 'Add New Table');
-                if (isset($_GET['deletedTable'])) {
-                    echo '<p class="spbtbl_removed">The table "' . esc_attr($_GET['deletedTable']) . '" has successfully been deleted.</p>';
+                printf('<a class="spbtbl_btn spbtbl_btn_new_table" href="%s">%s</a>', esc_url(admin_url('admin.php?page=' . $this->page_slug . "&func=add_table")), 'Add New Table');
+                if ($deletedTable) {
+                    echo '<p class="spbtbl_removed">The table "' . esc_attr($deletedTable) . '" has successfully been deleted.</p>';
                 }
                 echo "<table class='spbtbl_backend-table viewalltables'> 
 				<tr>
@@ -141,13 +153,10 @@ class spbtbl_Plugin
 							<td>
 							<a class="spbtbl_btn" href="%s">%s</a>
 							</td>
-							<td class="spbtbl_btn_copytable">
-							<a class="spbtbl_btn" href="%s">%s</a>
-							</td>
 							<td>
 							<a class="spbtbl_btn delete_btn" href="%s">%s</a>
 							</td>
-							</tr>', esc_attr($all[$i]['name']), $all[$i]['id'], wp_nonce_url(admin_url('admin.php?page=' . $this->page_slug . "&func=edit_table" . '&editnum=' . $all[$i]['id']), 'edit_table'), 'Edit Table', wp_nonce_url(admin_url('admin.php?page=' . $this->page_slug . "&func=copy_table&tableName=" . $all[$i]['name'] . '&copyNum=' . $all[$i]['id']), 'copy_table'), 'Copy Table', wp_nonce_url(admin_url('admin.php?page=' . $this->page_slug . "&func=delete_table&tableName=" . $all[$i]['name'] . '&deleteNum=' . $all[$i]['id']), 'delete_table'), 'Delete Table');
+							</tr>', esc_html($all[$i]['name']), esc_attr($all[$i]['id']), esc_url(wp_nonce_url(admin_url('admin.php?page=' . $this->page_slug . "&func=edit_table" . '&editnum=' . $all[$i]['id']), 'edit_table')), 'Edit Table', esc_url(wp_nonce_url(admin_url('admin.php?page=' . $this->page_slug . "&func=delete_table&tableName=" . $all[$i]['name'] . '&deleteNum=' . $all[$i]['id']), 'delete_table')), 'Delete Table');
                                 }
                             }
                         }
@@ -161,7 +170,7 @@ class spbtbl_Plugin
     <?php
     }
 
-    private function spbtbl_setup_UI($table)
+    private function spbtbl_setup_UI($table, $editnum = false, $savedTable = false)
     {
         $tableName = $table != null ? esc_attr($table['name']) : '';
         $tableColor = $table != null ? esc_attr($table['color']) : 'standard';
@@ -180,31 +189,31 @@ class spbtbl_Plugin
         ///
         $defaultCellText = 'Insert text here';
 
-        printf('<a class="spbtbl_btn btn_topright" href="%s">%s</a>', wp_nonce_url(admin_url('admin.php?page=' . $this->page_slug), 'return'), 'View All Tables');
+        printf('<a class="spbtbl_btn btn_topright" href="%s">%s</a>', esc_url(wp_nonce_url(admin_url('admin.php?page=' . $this->page_slug), 'return')), 'View All Tables');
         echo '<a href="https://superbthemes.com/plugins/superb-tables/" class="view-premium-version view-premium-version-createtablepage" target="_blank">View Premium Version</a>'; ?>
         <script type="text/javascript">
-            var defaultCellText = "<?php echo $defaultCellText; ?>";
-            var colorScheme = "<?php echo $tableColor; ?>";
-            var tableStyle = "<?php echo $tableStyle; ?>";
-            var fontsize_td = "<?php echo $fontsize_td; ?>";
-            var fontsize_th = "<?php echo $fontsize_th; ?>";
-            var floatmode = "<?php echo $floatmode; ?>";
-            var fullwidth = "<?php echo $fullwidth; ?>";
-            var disableschema = "<?php echo $disableschema; ?>";
+            var defaultCellText = "<?php echo esc_attr($defaultCellText); ?>";
+            var colorScheme = "<?php echo esc_attr($tableColor); ?>";
+            var tableStyle = "<?php echo esc_attr($tableStyle); ?>";
+            var fontsize_td = "<?php echo esc_attr($fontsize_td); ?>";
+            var fontsize_th = "<?php echo esc_attr($fontsize_th); ?>";
+            var floatmode = "<?php echo esc_attr($floatmode); ?>";
+            var fullwidth = "<?php echo esc_attr($fullwidth); ?>";
+            var disableschema = "<?php echo esc_attr($disableschema); ?>";
         </script>
         <form method="post" name="saveTable">
             <input class="spbtbl_btn top-save-button" type="submit" value="Save Table" />
-            <input id="spbtbl_rowNum" type="hidden" value=<?php echo "'" . ($rowCount + 1) . "'" ?> />
-            <input id="spbtbl_colNum" type="hidden" value=<?php echo "'" . ($colCount + 1) . "'" ?> />
-            <?php if (isset($_GET['editnum'])) { ?>
-                <input name="tableId" type="hidden" value=<?php echo "'" . intval($_GET['editnum']) . "'" ?> />
+            <input id="spbtbl_rowNum" type="hidden" value="<?php echo esc_attr($rowCount + 1); ?>" />
+            <input id="spbtbl_colNum" type="hidden" value="<?php echo esc_attr($colCount + 1); ?>" />
+            <?php if ($editnum !== false) { ?>
+                <input name="tableId" type="hidden" value="<?php echo esc_attr($editnum) ?>" />
             <?php } ?>
 
             <!-- TABLE NAME INPUT -->
             <!-- SHOW SHORTCODE IF EDIT -->
             <div class="spbtbl_tableshortcode">
 
-                <?php if (isset($_GET['editnum'])) { ?><div class="spbtbl_shortcodewrapper"><span class="spbtbl_shortcodetext	">Shortcode</span><input type="text" class="spbtbl_shortcode shortcodeedittable" value="[spbtbl_sc id=<?php echo intval($_GET['editnum']) ?>]" readonly> </div>
+                <?php if ($editnum !== false) { ?><div class="spbtbl_shortcodewrapper"><span class="spbtbl_shortcodetext	">Shortcode</span><input type="text" class="spbtbl_shortcode shortcodeedittable" value="[spbtbl_sc id=<?php echo esc_attr($editnum); ?>]" readonly> </div>
                     <div class='spbtbl_tip spbtbl_tip_shortcode'><span>Tip:</span> Copy & Paste shortcodes in your post/page to show the table.</div>
                 <?php } ?>
             </div>
@@ -219,7 +228,7 @@ class spbtbl_Plugin
                         <td>
                             <div class="table-options-column-innner">
                                 <span class="table-options-info">Table Name</span><br>
-                                <input id="spbtbl_tableName" placeholder="Insert Table Name" type="text" name="tableName" value="<?php echo $tableName ?>" required="required">
+                                <input id="spbtbl_tableName" placeholder="Insert Table Name" type="text" name="tableName" value="<?php echo esc_attr($tableName); ?>" required="required">
                             </div>
                         </td>
                         <td>
@@ -295,17 +304,17 @@ class spbtbl_Plugin
 
 
 
-                <table id="spbtbl" class="spbtbl-style backend spbtbl-color-<?php echo $tableColor ?>">
+                <table id="spbtbl" class="spbtbl-style backend spbtbl-color-<?php echo esc_attr($tableColor); ?>">
                     <thead>
                         <tr>
                             <th class="hidden_row"></th>
                             <?php for ($i = 0; $i < $colCount; $i++) {
                                 if ($i == -1) {
-                            ?><th align="left"><textarea rows="1" data-min-rows="1" placeholder="<?php echo $defaultCellText ?>" type="text" name="colValues[0][0]" class="text_input"><?php echo esc_attr($colsarray[$i]) ?></textarea></th><?php
-                                                                                                                                                                                                                                            } else {
-                                                                                                                                                                                                                                                ?><th align="left"><textarea rows="1" data-min-rows="1" placeholder="<?php echo $defaultCellText ?>" type="text" name="colValues[0][<?php echo $i ?>]" class="text_input"><?php echo esc_attr($colsarray[$i]) ?></textarea><input class='spbtbl_removeCol' type='button' data-value=<?php echo ($i + 1) ?>></th> <?php
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            } ?>
+                            ?><th align="left"><textarea rows="1" data-min-rows="1" placeholder="<?php echo esc_attr($defaultCellText); ?>" type="text" name="colValues[0][0]" class="text_input"><?php echo esc_attr($colsarray[$i]) ?></textarea></th><?php
+                                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                                        ?><th align="left"><textarea rows="1" data-min-rows="1" placeholder="<?php echo esc_attr($defaultCellText); ?>" type="text" name="colValues[0][<?php echo esc_attr($i); ?>]" class="text_input"><?php echo esc_attr($colsarray[$i]) ?></textarea><input class='spbtbl_removeCol' type='button' data-value=<?php echo esc_attr(($i + 1)); ?>></th> <?php
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    } ?>
 
                         </tr>
                     </thead>
@@ -319,8 +328,8 @@ class spbtbl_Plugin
                                     </td><?php
                                                             }
                                                             for ($k = 0; $k < $colCount; $k++) { ?>
-                                    <td><textarea class="text_input" placeholder="<?php echo $defaultCellText ?>" rows="1" data-min-rows="1" name="rowValues[<?php echo $j ?>][<?php echo $k ?>]"><?php echo esc_attr($rowsarray[$currentCell++]) ?></textarea></td><?php
-                                                                                                                                                                                                                                                                } ?>
+                                    <td><textarea class="text_input" placeholder="<?php echo esc_attr($defaultCellText); ?>" rows="1" data-min-rows="1" name="rowValues[<?php echo esc_attr($j); ?>][<?php echo esc_attr($k); ?>]"><?php echo esc_attr($rowsarray[$currentCell++]) ?></textarea></td><?php
+                                                                                                                                                                                                                                                                                                    } ?>
                             </tr><?php
                                 } ?>
                     </tbody>
@@ -329,13 +338,13 @@ class spbtbl_Plugin
             <div class="plugin-savebutton-wrapper">
                 <!-- SHOW SAVE SUCCESS-->
                 <?php
-                if (isset($_GET['savedTable'])) {
-                    echo '<p class="spbtbl_success">Your table "' . esc_attr($_GET['savedTable']) . '" has been saved and is ready for use with the shortcode provided above.</p>';
+                if ($savedTable) {
+                    echo '<p class="spbtbl_success">Your table "' . esc_html($savedTable) . '" has been saved and is ready for use with the shortcode provided above.</p>';
                 } ?>
                 <!-- SAVE SUCCESS END -->
 
                 <br>
-                <?php wp_nonce_field('spbtbl_submit', '_wpnonce'); ?>
+                <input type="hidden" id="_wpnonce" name="_wpnonce" value="<?php echo esc_attr(wp_create_nonce('spbtbl_submit')); ?>" />
                 <input class="spbtbl_btn spbtbl_saveNew_footer" id="spbtbl_saveNew" type="submit" value="Save Table" />
         </form>
 
@@ -344,33 +353,59 @@ class spbtbl_Plugin
         <?php
     }
 
-
     public function spbtbl_eventHandler($current_screen)
     {
-        if (isset($_GET['func']) && $_GET['func'] == 'add_table') {
-            if (isset($_POST['colValues']) && isset($_POST['rowValues']) && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'spbtbl_submit')) {
-                $result = $this->db->add($this->validateSanitize($_POST['tableName'], 'string'), $this->validateSanitize($_POST['rowValues'], 'array'), $this->validateSanitize($_POST['colValues'], 'array'), $this->validateSanitize($_POST['color'], 'color'), $this->validateSanitize($_POST['style'], 'int'), $this->validateSanitize($_POST['fontsize_td'], 'int'), $this->validateSanitize($_POST['fontsize_th'], 'int'), $this->validateSanitize($_POST['floatmode'], 'int'), $this->validateSanitize($_POST['fullwidth'], 'bit'), $this->validateSanitize($_POST['disableschema'], 'bit'));
+        $user_caps = apply_filters('spbtbl_user_capabilities', $this->user_caps);
+        if (!current_user_can($user_caps)) {
+            return;
+        }
+
+        $page = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : false;
+        $func = isset($_GET['func']) ? sanitize_text_field(wp_unslash($_GET['func'])) : false;
+        $editnum = isset($_GET['editnum']) ? intval(sanitize_text_field(wp_unslash($_GET['editnum']))) : false;
+        $copyNum = isset($_GET['copyNum']) ? intval(sanitize_text_field(wp_unslash($_GET['copyNum']))) : false;
+        $deleteNum = isset($_GET['deleteNum']) ? intval(sanitize_text_field(wp_unslash($_GET['deleteNum']))) : false;
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : false;
+        if (!$nonce) {
+            $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field(wp_unslash($_GET['_wpnonce'])) : false;
+        }
+
+        $tableId = isset($_POST['tableId']) ? sanitize_text_field(wp_unslash($_POST['tableId'])) : false;
+        $tableName = isset($_POST['tableName']) ? sanitize_text_field(wp_unslash($_POST['tableName'])) : false;
+        $colValues = isset($_POST['colValues']) ? map_deep(wp_unslash($_POST['colValues']), 'wp_kses_post') : false;
+        $rowValues = isset($_POST['rowValues']) ? map_deep(wp_unslash($_POST['rowValues']), 'wp_kses_post') : false;
+        $tableColor = isset($_POST['color']) ? sanitize_text_field(wp_unslash($_POST['color'])) : false;
+        $tableStyle = isset($_POST['style']) ? sanitize_text_field(wp_unslash($_POST['style'])) : false;
+        $fontsize_td = isset($_POST['fontsize_td']) ? sanitize_text_field(wp_unslash($_POST['fontsize_td'])) : false;
+        $fontsize_th = isset($_POST['fontsize_th']) ? sanitize_text_field(wp_unslash($_POST['fontsize_th'])) : false;
+        $floatmode = isset($_POST['floatmode']) ? sanitize_text_field(wp_unslash($_POST['floatmode'])) : false;
+        $fullwidth = isset($_POST['fullwidth']) ? sanitize_text_field(wp_unslash($_POST['fullwidth'])) : false;
+        $disableschema = isset($_POST['disableschema']) ? sanitize_text_field(wp_unslash($_POST['disableschema'])) : false;
+
+        if ($func && $func == 'add_table') {
+            if ($colValues && $rowValues && wp_verify_nonce($nonce, 'spbtbl_submit')) {
+                $result = $this->db->add($this->validateSanitize($tableName, 'string'), $this->validateSanitize($rowValues, 'array'), $this->validateSanitize($colValues, 'array'), $this->validateSanitize($tableColor, 'color'), $this->validateSanitize($tableStyle, 'int'), $this->validateSanitize($fontsize_td, 'int'), $this->validateSanitize($fontsize_th, 'int'), $this->validateSanitize($floatmode, 'int'), $this->validateSanitize($fullwidth, 'bit'), $this->validateSanitize($disableschema, 'bit'));
                 if ($result) {
-                    $sendback = add_query_arg(array('page' => $_GET['page'], 'savedTable' => urlencode($_POST['tableName']), 'success' => true), '');
+                    $sendback = add_query_arg(array('page' => $page, 'savedTable' => urlencode($tableName), 'success' => true), '');
                     wp_redirect($sendback);
                 }
             }
         }
 
-        if (isset($_GET['func']) && isset($_GET['editnum']) && $_GET['func'] == 'edit_table' && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'spbtbl_submit')) {
-            if (isset($_POST['colValues']) && isset($_POST['rowValues'])) {
-                $result = $this->db->update($this->validateSanitize($_POST['tableId'], 'id'), $this->validateSanitize($_POST['tableName'], 'string'), $this->validateSanitize($_POST['rowValues'], 'array'), $this->validateSanitize($_POST['colValues'], 'array'), $this->validateSanitize($_POST['color'], 'color'), $this->validateSanitize($_POST['style'], 'int'), $this->validateSanitize($_POST['fontsize_td'], 'int'), $this->validateSanitize($_POST['fontsize_th'], 'int'), $this->validateSanitize($_POST['floatmode'], 'int'), $this->validateSanitize($_POST['fullwidth'], 'bit'), $this->validateSanitize($_POST['disableschema'], 'bit'));
+        if ($func && $func == 'edit_table' && $editnum !== false && wp_verify_nonce($nonce, 'spbtbl_submit')) {
+            if ($colValues && $rowValues) {
+                $result = $this->db->update($this->validateSanitize($tableId, 'id'), $this->validateSanitize($tableName, 'string'), $this->validateSanitize($rowValues, 'array'), $this->validateSanitize($colValues, 'array'), $this->validateSanitize($tableColor, 'color'), $this->validateSanitize($tableStyle, 'int'), $this->validateSanitize($fontsize_td, 'int'), $this->validateSanitize($fontsize_th, 'int'), $this->validateSanitize($floatmode, 'int'), $this->validateSanitize($fullwidth, 'bit'), $this->validateSanitize($disableschema, 'bit'));
                 if ($result) {
-                    $sendback = add_query_arg(array('page' => $_GET['page'], 'func' => 'edit_table', 'editnum' => $_GET['editnum'], 'savedTable' => urlencode($_POST['tableName']), 'success' => true, '_wpnonce' => wp_create_nonce('edit_table')), '');
+                    $sendback = add_query_arg(array('page' => $page, 'func' => 'edit_table', 'editnum' => $editnum, 'savedTable' => urlencode($tableName), 'success' => true, '_wpnonce' => wp_create_nonce('edit_table')), '');
                     wp_redirect($sendback);
                 }
             }
         }
 
-        if (isset($_GET['func']) && isset($_GET['deleteNum']) && isset($_GET['tableName']) && $_GET['func'] == 'delete_table' && isset($_GET['_wpnonce']) && wp_verify_nonce($_GET['_wpnonce'], 'delete_table')) {
-            $result = $this->db->delete(intval($_GET['deleteNum']));
+        if ($func && $func == 'delete_table' && $deleteNum !== false && $tableName !== false && wp_verify_nonce($nonce, 'delete_table')) {
+            $result = $this->db->delete(intval($deleteNum));
             if ($result) {
-                $sendback = add_query_arg(array('page' => $_GET['page'], 'deletedTable' => urlencode($_GET['tableName']), 'success' => true), '');
+                $sendback = add_query_arg(array('page' => $page, 'deletedTable' => urlencode($tableName), 'success' => true), '');
                 wp_redirect($sendback);
             }
         }
@@ -510,22 +545,22 @@ class spbtbl_Plugin
             ob_start();
             ///
         ?>
-            <div <?php if ($style == 0) { ?> class="spbtbl-wrapper <?php echo $wrapperClassString ?>" <?php } ?>>
-                <table class="<?php echo $tableClassString ?>" title="<?php echo $tableName ?>" <?php if ($disableschema == 0) { ?> itemscope itemtype="http://schema.org/Table" <?php } ?>>
+            <div <?php if ($style == 0) { ?> class="spbtbl-wrapper <?php echo esc_attr($wrapperClassString); ?>" <?php } ?>>
+                <table class="<?php echo esc_attr($tableClassString); ?>" title="<?php echo esc_attr($tableName); ?>" <?php if ($disableschema == 0) { ?> itemscope itemtype="http://schema.org/Table" <?php } ?>>
                     <!-- Superb Tables Plugin -->
                     <tr>
                         <?php for ($i = 0; $i < $colCount; $i++) {
-                        ?><th style="font-size: <?php echo $fontsize_th ?>px !important;" <?php if ($disableschema == 0) { ?> itemprop="name" <?php } ?> align="left"><?php echo $colsarray[$i] ?></th><?php
-                                                                                                                                                                                                    } ?>
+                        ?><th style="font-size: <?php echo esc_attr($fontsize_th); ?>px !important;" <?php if ($disableschema == 0) { ?> itemprop="name" <?php } ?> align="left"><?php echo wp_kses($colsarray[$i], "post"); ?></th><?php
+                                                                                                                                                                                                                                } ?>
 
                     </tr>
                     <?php for ($j = 0; $j < $rowCount; $j++) {
                     ?><tr><?php
                             for ($k = 0; $k < $colCount; $k++) { ?>
-                                <td style="font-size:<?php echo $fontsize_td ?>px !important;" <?php if ($disableschema == 0) { ?>itemprop="description" <?php } ?>><?php
-                                                                                                                                                                    echo do_shortcode($rowsarray[$currentCell++]);
-                                                                                                                                                                    ?></td><?php
-                                                                                                                                                                        } ?>
+                                <td style="font-size:<?php echo esc_attr($fontsize_td); ?>px !important;" <?php if ($disableschema == 0) { ?>itemprop="description" <?php } ?>><?php
+                                                                                                                                                                                echo do_shortcode(wp_kses($rowsarray[$currentCell++], "post"));
+                                                                                                                                                                                ?></td><?php
+                                                                                                                                                                                    } ?>
                         </tr><?php
                             } ?>
                 </table>

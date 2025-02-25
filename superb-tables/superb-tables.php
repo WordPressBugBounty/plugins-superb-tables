@@ -1,9 +1,9 @@
 <?php
 /*
-Plugin Name: Superb WordPress Table (SEO Optimized Tables With Schema)
+Plugin Name: Superb Table (SEO Optimized Tables With Schema)
 Plugin URI: https://superbthemes.com/plugins/superb-tables/
 Description: Responsive & SEO Optimized tables. Get your Google Featured Snippets. Different table designs, table shortcodes & lightweight code.
-Version: 1.1.5
+Version: 1.2.0
 Author: SuPlugins
 Author URI: http://superbthemes.com
 License: GPL2 or later
@@ -17,7 +17,7 @@ require_once plugin_dir_path(__FILE__) . 'inc/spbtbl-plugin.php';
 
 function spbtbl_run_table_plugin()
 {
-    $plugin_instance = new spbtbl_Plugin('1.1.5', false, plugin_dir_path(__FILE__));
+    $plugin_instance = new spbtbl_Plugin('1.2.0', false, plugin_dir_path(__FILE__));
     register_activation_hook(__FILE__, array($plugin_instance, 'spbtbl_initialize'));
     //register_uninstall_hook( __FILE__, array('spbtbl_Plugin', 'spbtbl_rollback') );
 }

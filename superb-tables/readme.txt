@@ -1,10 +1,10 @@
-=== Superb WordPress Table (SEO Optimized Tables With Schema) ===
+=== Superb Table (SEO Optimized Tables With Schema) ===
 Contributors: SuPlugins, Themeeverest
-Tags: tables, responsive tables, table, content tables, wordpress
+Tags: tables, responsive tables, table, content tables
 Requires at least: 3.0.1
-Tested up to: 6.5
+Tested up to: 6.7
 Requires PHP: 5.2.4
-Stable tag: 1.1.5
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -156,6 +156,9 @@ Yes! Any help is much appreciated, you don't need any programming or coding skil
 
 
 == Changelog ==
+= 1.2.0 =
+Various improvements and fixes.
+
 = 1.1.5 = 
 Minor fixes.
 
