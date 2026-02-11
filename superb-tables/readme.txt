@@ -2,7 +2,7 @@
 Contributors: SuPlugins, Themeeverest
 Tags: tables, responsive tables, table, content tables
 Requires at least: 3.0.1
-Tested up to: 6.7
+Tested up to: 6.9
 Requires PHP: 5.2.4
 Stable tag: 1.2.0
 License: GPLv2 or later
